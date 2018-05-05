@@ -113,9 +113,9 @@ func findInDir(dir string, theSpecs specs, externalWaitGroup *sync.WaitGroup, re
 func find(theSpecs specs) {
 	// Restrict the number of opened files in order to avoid "too many open
 	// files" error that you might get when looking into directories with >1000
-	// sub dirs. Performance wise it doesn't appear to matter whether _size_ is
-	// 1, 10 or 50.
-	size := 10
+	// sub dirs. Performance wise 8 seems to be the optimal number. At least in
+	// a single test with thousands of dirs and tens of thousands of files.
+	size := 8
 	restrictor := make(chan int, size)
 	for i := 0; i < size; i++ {
 		restrictor <- 0
