@@ -1,0 +1,30 @@
+= go-find-dated
+
+Find files based on the date in filename. Go version of https://github.com/denarced/find-dated.
+
+== Usage
+
+See the aforementioned find-dated to get an idea on how to use. Behavior should
+be identical except for error handling which hasn't been implemented in this Go
+version.
+
+== Motivation
+
+This was written merely in order to see how much performance would improve if
+find-dated was written with Go and parallelism was utilized to the extreme.
+Performance did in fact improve significantly. The test involved a directory
+with 2601 subdirectories and 67200 files. They were created with a script in
+find-dated repository. The approximate durations:
+
+* ~1.45s: Python based find-dated
+* ~0.23s: this
+* ~0.11s: `find directory/ -type f` (this is just to have a reference to a
+really fast implementation, to have some kind of frame of reference)
+
+The tests were performed with a desktop computer with
+
+* Ubuntu 16.04.4 64bit
+* i7-3770
+* 16GB
+* Samsung 850 EVO 500GB
+* ext4 filesystem
