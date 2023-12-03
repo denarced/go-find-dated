@@ -1,6 +1,7 @@
 = go-find-dated
 
-Find files based on the date in filename. Go version of https://github.com/denarced/find-dated.
+Find files based on the date in filename. Go version of
+https://github.com/denarced/find-dated[denarced/find-dated].
 
 == Usage
 
@@ -14,17 +15,27 @@ This was written merely in order to see how much performance would improve if
 find-dated was written with Go and parallelism was utilized to the extreme.
 Performance did in fact improve significantly. The test involved a directory
 with 2601 subdirectories and 67200 files. They were created with a script in
-find-dated repository. The approximate durations:
+https://github.com/denarced/find-dated[denarced/find-dated] repository. The
+approximate durations were measured with
+https://github.com/sharkdp/hyperfine[sharkdp/hyperfine], all durations in
+milliseconds.
 
-* ~1.45s: Python based find-dated
-* ~0.23s: this
-* ~0.11s: `find directory/ -type f` (this is just to have a reference to a
-really fast implementation, to have some kind of frame of reference)
+[cols="<,>,>,>,>"]
+|===
+| Command                                                         | mean  | standard deviation | min  | max
 
-The tests were performed with a desktop computer with
+| https://github.com/denarced/find-dated[denarced/find-dated]     | 1,346 | 136                | 1095 | 1638
+| This                                                            |   183 |  24                |  155 |  231
+| https://www.gnu.org/software/findutils/[find] directory -type f |   105 |   7                |   94 |  117
+|===
 
-* Ubuntu 16.04.4 64bit
-* i7-3770
+GNU find was included to have a comparison against a really fast implementation,
+albeit one that's probably single threaded.
+
+The tests were performed on a Dell XPS 13 laptop with the following specs:
+
+* Ubuntu 22.04.3 64bit
+* Intel i7-8550U 1.80GHz
 * 16GB
-* Samsung 850 EVO 500GB
+* Samsung PM981 NVMe 512GB
 * ext4 filesystem

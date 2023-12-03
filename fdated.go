@@ -1,3 +1,4 @@
+// Find files based on dates in filenames.
 package main
 
 import (
@@ -14,22 +15,36 @@ import (
 var re = regexp.MustCompile(`\d{4}-\d{2}-\d{2}`)
 
 type specs struct {
-	dirs  []string
-	newer *time.Time
-	older *time.Time
-	today time.Time
+	dirs        []string
+	newer       *time.Time
+	older       *time.Time
+	today       time.Time
+	concurrency int
+}
+
+func createIntFlag(value *int, long, short string, defaultValue int, description string) {
+	flag.IntVar(value, long, defaultValue, description)
+	flag.IntVar(value, short, defaultValue, description)
 }
 
 func parseCli() (theSpecs specs) {
 	var newer int
-	flag.IntVar(&newer, "newer", -1, "days newer")
-	flag.IntVar(&newer, "n", -1, "days newer")
+	createIntFlag(&newer, "newer", "n", -1, "days newer")
 	var older int
-	flag.IntVar(&older, "older", -1, "days older")
-	flag.IntVar(&older, "o", -1, "days older")
+	createIntFlag(&older, "older", "o", -1, "days older")
 	var today string
 	flag.StringVar(&today, "today", "", "")
 	flag.StringVar(&today, "t", "", "")
+	var concurrency int
+	defaultConcurrency := 8
+	createIntFlag(
+		&concurrency,
+		"concurrency",
+		"c",
+		defaultConcurrency,
+		"maximum concurrent file accesses",
+	)
+
 	flag.Parse()
 
 	if len(today) > 0 {
@@ -50,6 +65,11 @@ func parseCli() (theSpecs specs) {
 		date := theSpecs.today.Add(time.Hour * time.Duration(24*-older))
 		theSpecs.older = &date
 	}
+	if concurrency < 1 {
+		// No good error handling yet so revert to the default.
+		concurrency = 8
+	}
+	theSpecs.concurrency = concurrency
 	theSpecs.dirs = flag.Args()
 	return
 }
@@ -83,15 +103,8 @@ func processFile(filepath string, theSpecs specs, waitGroup *sync.WaitGroup) {
 func findInDir(dir string, theSpecs specs, externalWaitGroup *sync.WaitGroup, restrictor chan int) {
 	defer externalWaitGroup.Done()
 	<-restrictor
-	restrictorFilled := false
-	defer func() {
-		if !restrictorFilled {
-			restrictor <- 0
-		}
-	}()
 	files, err := ioutil.ReadDir(dir)
 	restrictor <- 0
-	restrictorFilled = true
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error reading dir %v: %v\n", dir, err)
 		return
@@ -115,7 +128,9 @@ func find(theSpecs specs) {
 	// files" error that you might get when looking into directories with >1000
 	// sub dirs. Performance wise 8 seems to be the optimal number. At least in
 	// a single test with thousands of dirs and tens of thousands of files.
-	size := 8
+	size := theSpecs.concurrency
+	// Prefill buffer channel because otherwise initial goprocesses couldn't
+	// start.
 	restrictor := make(chan int, size)
 	for i := 0; i < size; i++ {
 		restrictor <- 0
