@@ -1,47 +1,32 @@
 package main
 
 import (
-	"fmt"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestExtractDateFromFilepath_NoDate(t *testing.T) {
-	_, success := extractDate("a/b/main.log")
-	if success {
-		t.Errorf("Date extraction should've failed but didn't")
-	}
+func createDate(year, month, day int) *time.Time {
+	d := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
+	return &d
 }
 
-func TestExtractDateFromFilepath_ValidDate(t *testing.T) {
-	expectedDate := time.Date(2018, 5, 5, 0, 0, 0, 0, time.UTC)
-	filepath := fmt.Sprintf("a/b/main_%s.log", expectedDate.Format("2006-01-02"))
-	actualDate, success := extractDate(filepath)
-	if !success {
-		t.Fatalf("Date extraction should've been successful")
+func TestExtractDate(t *testing.T) {
+	run := func(name, filep string, expectedDate *time.Time, shouldSucceed bool) {
+		t.Run(name, func(t *testing.T) {
+			ass := assert.New(t)
+			date, success := extractDate(filep)
+			ass.Equal(shouldSucceed, success)
+			if expectedDate != nil {
+				ass.Equal(*expectedDate, date)
+			}
+		})
 	}
-	if actualDate != expectedDate {
-		t.Fatalf("Wrong date received. Expected: %v, got: %v", expectedDate, actualDate)
-	}
-}
 
-func TestExtractDateFromFilepath_InvalidDate(t *testing.T) {
-	date, success := extractDate("main_2018-02-30.log")
-	if success {
-		t.Fatalf("Extract should've failed but produced: %v", date)
-	}
-}
-
-func TestExtractDateFromFilepath_MaxDate(t *testing.T) {
-	_, success := extractDate("a/../hell-9999-12-31")
-	if !success {
-		t.Fatal("Extract should've succeeded")
-	}
-}
-
-func TestExtractDateFromFilepath_MinDate(t *testing.T) {
-	_, success := extractDate("a/../hell-0000-01-01")
-	if !success {
-		t.Fatal("Extract should've succeeded")
-	}
+	run("no date", "a/b/main.log", nil, false)
+	run("valid date", "a/b/main_2018-05-05.log", createDate(2018, 5, 5), true)
+	run("invalid date", "main_2018-02-30.log", nil, false)
+	run("max", "a/../hell-9999-12-31", createDate(9999, 12, 31), true)
+	run("min", "a/../hell-00000101", createDate(0, 1, 1), true)
 }
