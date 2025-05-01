@@ -7,11 +7,13 @@ import (
 	"path"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/alecthomas/kong"
+	"github.com/denarced/gent"
 )
 
 var (
@@ -28,6 +30,9 @@ var CLI struct {
 	NewerDays int       `short:"n" default:"-1" help:"Days newer. Ignored when <0."`
 	OlderDays int       `short:"o" default:"-1" help:"Days older. Ignored when <0."`
 	Today     time.Time `short:"t" type:"date" format:"2006-01-02"`
+	Future    bool      `help:"Include dates that are in the future."`
+
+	Format string `short:"f" help:"%t for date, and %p for filepath."`
 }
 
 func reduceDaysFromToday(days int) *time.Time {
@@ -49,8 +54,8 @@ func finishCliDates() {
 	}
 }
 
-func extractDate(filepath string) (t time.Time, success bool) {
-	groups := re.FindStringSubmatch(filepath)
+func extractDate(filep string) (t time.Time, success bool) {
+	groups := re.FindStringSubmatch(filep)
 	if groups == nil {
 		return
 	}
@@ -61,10 +66,13 @@ func extractDate(filepath string) (t time.Time, success bool) {
 	return
 }
 
-func processFile(filepath string, waitGroup *sync.WaitGroup) {
+func processFile(filep string, waitGroup *sync.WaitGroup) {
 	defer waitGroup.Done()
-	date, success := extractDate(filepath)
+	date, success := extractDate(filep)
 	if !success {
+		return
+	}
+	if !CLI.Future && time.Now().Before(date) {
 		return
 	}
 	if older != nil && !date.Before(*older) {
@@ -73,7 +81,17 @@ func processFile(filepath string, waitGroup *sync.WaitGroup) {
 	if newer != nil && !date.After(*newer) {
 		return
 	}
-	fmt.Println(filepath)
+	if CLI.Format == "" {
+		fmt.Println(filep)
+	} else {
+		fmt.Print(formatOutput(filep, date))
+	}
+}
+
+func formatOutput(filep string, date time.Time) string {
+	s := strings.Replace(CLI.Format, "%t", date.Format("2006-01-02"), 1)
+	s = strings.Replace(s, "%p", filep, 1)
+	return gent.OrPanic2(strconv.Unquote(`"` + s + `"`))("convert backslash characters failed")
 }
 
 func findInDir(dir string, externalWaitGroup *sync.WaitGroup, restrictor chan int) {
