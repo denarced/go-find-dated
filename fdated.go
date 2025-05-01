@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/alecthomas/kong"
 	"github.com/denarced/gent"
@@ -25,8 +25,6 @@ const (
 var (
 	newer *time.Time
 	older *time.Time
-
-	re = regexp.MustCompile(`(\d{4})-?(\d{2})-?(\d{2})`)
 )
 
 var CLI struct {
@@ -60,15 +58,40 @@ func finishCliDates() {
 	}
 }
 
-func extractDate(filep string) (t time.Time, success bool) {
-	groups := re.FindStringSubmatch(filep)
-	if groups == nil {
-		return
+func readDigits(s string) (string, bool) {
+	i := 0
+	digits := make([]rune, 8)
+	for _, c := range s {
+		if '0' <= c && c <= '9' {
+			digits[i] = c
+			i++
+			if i == 8 {
+				return string(digits), true
+			}
+		} else if c != '-' {
+			return "", false
+		}
 	}
-	dateString := strings.Join(groups[1:], "-")
+	return "", false
+}
+
+func extractDate(filep string) (t time.Time, success bool) {
 	var err error
-	t, err = time.Parse("2006-01-02", dateString)
-	success = err == nil
+	for i := 0; i <= len(filep)-8; i++ {
+		if !unicode.IsDigit(rune(filep[i])) {
+			continue
+		}
+		candidate := filep[i:min(i+10, len(filep))]
+		digits, ok := readDigits(candidate)
+		if !ok {
+			continue
+		}
+		t, err = time.Parse("20060102", digits)
+		success = err == nil
+		if success {
+			return
+		}
+	}
 	return
 }
 
@@ -132,7 +155,7 @@ func find() {
 	// Prefill buffer channel because otherwise initial goprocesses couldn't
 	// start.
 	restrictor := make(chan int, size)
-	for i := 0; i < size; i++ {
+	for range size {
 		restrictor <- 0
 	}
 

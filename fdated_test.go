@@ -29,4 +29,14 @@ func TestExtractDate(t *testing.T) {
 	run("invalid date", "main_2018-02-30.log", nil, false)
 	run("max", "a/../hell-9999-12-31", createDate(9999, 12, 31), true)
 	run("min", "a/../hell-00000101", createDate(0, 1, 1), true)
+	run("short at the end", "alpha-20000101", createDate(2000, 1, 1), true)
+	run("invalid short at the end", "alpha-2000010", nil, false)
+	run("long at the end", "omega-1999-12-31", createDate(1999, 12, 31), true)
+	run("invalid long at the end", "omega-1999-12-3", nil, false)
+}
+
+func BenchmarkExtractDate(b *testing.B) {
+	for range b.N {
+		extractDate("finance-2024-01-02-2024-02-04-engineers.mp4")
+	}
 }

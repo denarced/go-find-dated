@@ -1,6 +1,6 @@
 module github.com/denarced/go-find-dated
 
-go 1.18
+go 1.22.2
 
 require (
 	github.com/alecthomas/kong v1.10.0
