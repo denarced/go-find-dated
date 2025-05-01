@@ -16,6 +16,12 @@ import (
 	"github.com/denarced/gent"
 )
 
+const (
+	errorCodeConcurrencyNegative int = iota + 3
+	errorCodeConcurrencyTooMuch
+	errorCodeDir
+)
+
 var (
 	newer *time.Time
 	older *time.Time
@@ -24,7 +30,7 @@ var (
 )
 
 var CLI struct {
-	Dirs        []string `arg:"" type:"existingdir" help:"Dirs to search in."`
+	Dirs        []string `arg:"" help:"Dirs to search in."`
 	Concurrency int      `short:"c" default:"8" help:"Maximum concurrent file accesses."`
 
 	NewerDays int       `short:"n" default:"-1" help:"Days newer. Ignored when <0."`
@@ -138,16 +144,33 @@ func find() {
 	waitGroup.Wait()
 }
 
+func checkDirs() error {
+	for _, each := range CLI.Dirs {
+		stat, err := os.Stat(each)
+		if err != nil {
+			return err
+		}
+		if !stat.IsDir() {
+			return fmt.Errorf("not a directory: %s", each)
+		}
+	}
+	return nil
+}
+
 func main() {
 	kong.Parse(&CLI)
 	concurrencyErrorMessage := "Invalid concurrency. Must be >=1 and <=CPU's core count."
 	if CLI.Concurrency < 0 {
 		fmt.Fprintln(os.Stderr, concurrencyErrorMessage)
-		os.Exit(3)
+		os.Exit(errorCodeConcurrencyNegative)
 	}
 	if CLI.Concurrency > runtime.NumCPU() {
 		fmt.Fprintln(os.Stderr, concurrencyErrorMessage)
-		os.Exit(4)
+		os.Exit(errorCodeConcurrencyTooMuch)
+	}
+	if err := checkDirs(); err != nil {
+		fmt.Fprintf(os.Stderr, "Invalid directory: %s\n", err)
+		os.Exit(errorCodeDir)
 	}
 	finishCliDates()
 	find()
